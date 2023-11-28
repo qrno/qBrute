@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+import pathlib
+
+def running_cmd(s):
+    suff = pathlib.Path(s).suffix
+    match suff:
+        case '.py': return ['python', s]
+        case '.lua': return ['lua', s]
+        case '.go': return ['go', 'run', s]
+        case _: return ['./'+s]
+
+def brute(gen, p1, p2, num_trials=100, verbose=False, save_failed_input=False):
+    for test_idx in range(num_trials):
+        gen_out = subprocess.check_output(running_cmd(gen))
+        out1 = subprocess.check_output(running_cmd(p1), input=gen_out).decode().strip()
+        out2 = subprocess.check_output(running_cmd(p2), input=gen_out).decode().strip()
+
+        gen_out = gen_out.decode().strip()
+
+        def header(s): return s.ljust(32, '-')
+        if verbose:
+            print(f"{header(gen)}\n{gen_out}")
+            print(f"{header(p1)}\n{out1}")
+            print(f"{header(p2)}\n{out2}")
+
+        if out1.split() != out2.split():
+            print(f"{header(gen)}\n{gen_out}")
+            print(f"{header(p1)}\n{out1}")
+            print(f"{header(p2)}\n{out2}")
+            if save_failed_input:
+                with open(f"failed_input_{test_idx+1}.txt", "w") as f:
+                    f.write(gen_out)
+            return
+
+        print(f"Test #{test_idx+1} OK")
+
+    print(f'Ran {num_trials} tests')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(prog='qBrute')
+    parser.add_argument('gen')
+    parser.add_argument('program1')
+    parser.add_argument('program2')
+    parser.add_argument('--count', '-c', default=10, type=int)
+    parser.add_argument('--verbose', '-v', action='store_true')
+    parser.add_argument('--save-failed-input', '-s', action='store_true')
+
+    args = parser.parse_args()
+
+    for filepath in [args.gen, args.program1, args.program2]:
+        if not pathlib.Path(filepath).exists():
+            print(f"{filepath} not found")
+            exit(1)
+
+    brute(args.gen, args.program1, args.program2, args.count, args.verbose, args.save_failed_input)
